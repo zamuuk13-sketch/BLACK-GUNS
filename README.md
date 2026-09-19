@@ -1,6 +1,6 @@
 # BLACK GUNS
 
-## Mobile VR — Etapa 3: câmera + base de head tracking
+## Mobile VR — Etapa 4: estimador visual + IMU
 
 A Etapa 4 evolui a câmera traseira invisível para um **estimador visual leve**, mantendo o IMU da etapa anterior. A imagem da câmera continua sendo apenas uma fonte interna de dados e não é colocada em nenhum controle visual, viewport ou tela do usuário.
 
@@ -30,10 +30,12 @@ Também não há imagem da câmera na interface.
 1. Compile e instale o APK.
 2. Conceda a permissão de câmera.
 3. Inicie os sensores.
-4. Observe o painel **CÂMERA**.
+4. Observe **CÂMERA** e **VISUAL**.
 5. O estado esperado é **ATIVA / SENSOR INVISÍVEL** e o contador de amostras deve aumentar.
-6. Movimente o aparelho e confirme que gyro/acelerômetro continuam atualizando.
-7. Nenhuma imagem da câmera deve aparecer na tela.
+6. Movimente lentamente o aparelho diante de uma cena com textura e observe `FLOW dx/dy`, pontos e confiança.
+7. A posição visual deve variar de forma relativa, sem saltos grandes.
+8. Confirme que gyro/acelerômetro continuam atualizando.
+9. Nenhuma imagem da câmera deve aparecer na tela.
 
 ### Próxima etapa
 
