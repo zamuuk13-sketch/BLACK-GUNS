@@ -39,3 +39,25 @@ tasks.register("downloadHandModel") {
     }
 }
 tasks.named("preBuild").configure { dependsOn("downloadHandModel") }
+
+val copyReleaseToProject by tasks.registering(Copy::class) {
+    dependsOn("assembleRelease")
+    from("build/outputs/aar")
+    include("BlackGunsHandTracking-release.aar")
+    into("../../../addons/BlackGunsHandTracking/bin/release")
+}
+val copyDebugToProject by tasks.registering(Copy::class) {
+    dependsOn("assembleDebug")
+    from("build/outputs/aar")
+    include("BlackGunsHandTracking-debug.aar")
+    into("../../../addons/BlackGunsHandTracking/bin/debug")
+}
+val copyPluginScripts by tasks.registering(Copy::class) {
+    from("export_scripts_template")
+    into("../../../addons/BlackGunsHandTracking")
+}
+tasks.named("assemble").configure {
+    finalizedBy(copyReleaseToProject)
+    finalizedBy(copyDebugToProject)
+    finalizedBy(copyPluginScripts)
+}
