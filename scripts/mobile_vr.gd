@@ -91,7 +91,7 @@ func _ready() -> void:
 	test_button.pressed.connect(_send_test_packet)
 	_request_camera_permission()
 	_start_camera_sensor()
-	_refresh_status("Etapa 8 pronta. Mãos com interação física, grab e throw.")
+	_refresh_status("Etapa 9 pronta. VR estéreo + cliente PC TCP/UDP discovery.")
 	_update_sensor_status()
 	_update_camera_status()
 	_update_visual_status()
@@ -218,6 +218,8 @@ func _process(delta: float) -> void:
 	if hand_sample_accumulator >= 1.0 / HAND_SAMPLE_HZ:
 		hand_sample_accumulator = fmod(hand_sample_accumulator, 1.0 / HAND_SAMPLE_HZ)
 		_sample_hand_tracker()
+
+	_update_3d_hands()
 
 	if tracking_enabled and pc_client.is_connected():
 		packet_accumulator += safe_delta
@@ -359,10 +361,10 @@ func _send_tracking_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_tracking",
-		"version": 7,
+		"version": 9,
 		"sequence": packet_sequence,
 		"timestamp_us": sensor_timestamp_us,
-		"sensor_stage": 8,
+		"sensor_stage": 9,
 		"head_rotation": [head_rotation.x, head_rotation.y, head_rotation.z],
 		"head_position": [head_position.x, head_position.y, head_position.z],
 		"gyroscope": [gyro_raw.x, gyro_raw.y, gyro_raw.z],
