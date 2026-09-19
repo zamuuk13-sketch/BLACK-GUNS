@@ -2,11 +2,21 @@
 
 [ext_resource type="PackedScene" path="res://pc/scenes/PCEnvironment.tscn" id="1"]
 [ext_resource type="Script" path="res://pc/scripts/pc_connection.gd" id="2"]
+[ext_resource type="Script" path="res://pc/scripts/pc_vr_stream.gd" id="3"]
 
 [node name="BlackGunsPCConnection" instance=ExtResource("1")]
 
 [node name="ConnectionManager" type="Node" parent="."]
 script = ExtResource("2")
+
+[node name="VRStream" type="Node" parent="."]
+script = ExtResource("3")
+stream_width = 640
+stream_height = 360
+stream_fps = 20.0
+jpeg_quality = 45
+video_port = 39102
+udp_chunk_size = 1200
 
 [node name="ConnectionPanel" type="Panel" parent="UI"]
 offset_left = 24.0
