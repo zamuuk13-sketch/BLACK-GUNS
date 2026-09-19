@@ -95,7 +95,7 @@ script = ExtResource("3")
 offset_left = 22.0
 offset_top = 22.0
 offset_right = 430.0
-offset_bottom = 720.0
+offset_bottom = 710.0
 
 [node name="Title" type="Label" parent="UI/Panel"]
 offset_left = 22.0
