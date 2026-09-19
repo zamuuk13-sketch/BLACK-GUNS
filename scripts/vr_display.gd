@@ -15,6 +15,9 @@ var left_rect: TextureRect
 var right_rect: TextureRect
 var source_camera: Camera3D
 var stereo_enabled := true
+var streaming_enabled := false
+var left_stream_texture: ImageTexture
+var right_stream_texture: ImageTexture
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -81,6 +84,26 @@ func _process(_delta: float) -> void:
 	right_camera.global_transform = right_transform
 	left_camera.fov = eye_fov
 	right_camera.fov = eye_fov
+
+func set_streaming_enabled(value: bool) -> void:
+    streaming_enabled = value
+
+func set_stream_frame(eye: int, image: Image) -> void:
+    if image == null or image.is_empty():
+        return
+    if eye == 0:
+        if left_stream_texture == null:
+            left_stream_texture = ImageTexture.create_from_image(image)
+        else:
+            left_stream_texture.update(image)
+        left_rect.texture = left_stream_texture
+    elif eye == 1:
+        if right_stream_texture == null:
+            right_stream_texture = ImageTexture.create_from_image(image)
+        else:
+            right_stream_texture.update(image)
+        right_rect.texture = right_stream_texture
+    streaming_enabled = true
 
 func set_ipd(value_meters: float) -> void:
 	ipd_meters = clamp(value_meters, 0.045, 0.080)
