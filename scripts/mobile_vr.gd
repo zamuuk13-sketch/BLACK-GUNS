@@ -6,6 +6,7 @@ const SENSOR_SEND_HZ := 60.0
 const ACCEL_FILTER := 0.12
 const ORIENTATION_CORRECTION := 0.02
 const CALIBRATION_SECONDS := 2.0
+const CAMERA_SAMPLE_HZ := 15.0
 
 var udp := PacketPeerUDP.new()
 var socket_open := false
@@ -13,7 +14,6 @@ var tracking_enabled := false
 
 var head_rotation := Vector3.ZERO
 var head_position := Vector3(0.0, 1.65, 0.0)
-var velocity := Vector3.ZERO
 var packet_sequence := 0
 
 var gyro_raw := Vector3.ZERO
@@ -22,16 +22,26 @@ var gyro_bias := Vector3.ZERO
 var accel_filtered := Vector3(0.0, -9.81, 0.0)
 var gyro_filtered := Vector3.ZERO
 var sensor_timestamp_us := 0
-var sensor_elapsed := 0.0
-var packet_accumulator := 0.0
 
 var calibrating := false
 var calibration_elapsed := 0.0
 var calibration_gyro_sum := Vector3.ZERO
 var calibration_samples := 0
+var packet_accumulator := 0.0
+
+# Etapa 3: câmera traseira usada somente como sensor.
+var camera_feed: CameraFeed = null
+var camera_feed_texture: Texture2D = null
+var camera_available := false
+var camera_active := false
+var camera_frame_size := Vector2i.ZERO
+var camera_sample_accumulator := 0.0
+var camera_sample_count := 0
+var camera_last_sample_us := 0
 
 @onready var status: Label = $UI/Panel/Status
 @onready var sensor_status: Label = $UI/Panel/SensorStatus
+@onready var camera_status: Label = $UI/Panel/CameraStatus
 @onready var connect_button: Button = $UI/Panel/ConnectButton
 @onready var start_button: Button = $UI/Panel/StartButton
 @onready var calibrate_button: Button = $UI/Panel/CalibrateButton
@@ -46,15 +56,48 @@ func _ready() -> void:
 	calibrate_button.pressed.connect(_start_calibration)
 	test_button.pressed.connect(_send_test_packet)
 	_request_camera_permission()
-	_refresh_status("Etapa 2 pronta. Inicie os sensores e calibre o celular.")
+	_start_camera_sensor()
+	_refresh_status("Etapa 3 pronta. Câmera reservada para tracking invisível.")
 	_update_sensor_status()
+	_update_camera_status()
 
 func _exit_tree() -> void:
+	if camera_feed != null:
+		camera_feed.set_active(false)
 	udp.close()
 
 func _request_camera_permission() -> void:
 	if OS.has_feature("android") and OS.has_method("request_permission"):
 		OS.request_permission("android.permission.CAMERA")
+
+func _start_camera_sensor() -> void:
+	camera_available = false
+	camera_active = false
+
+	var feed_count := CameraServer.get_feed_count()
+	for i in feed_count:
+		var feed := CameraServer.get_feed(i)
+		if feed == null:
+			continue
+
+		# Preferimos a câmera traseira. Em aparelhos onde a posição não é
+		# informada, usamos o primeiro feed disponível como fallback.
+		if feed.get_position() == CameraFeed.CAMERA_BACK or camera_feed == null:
+			camera_feed = feed
+
+	if camera_feed == null:
+		_refresh_status("Nenhum feed de câmera disponível. Verifique a permissão do Android.")
+		return
+
+	camera_feed.set_active(true)
+	camera_active = camera_feed.is_active()
+	camera_available = true
+	if camera_active:
+		camera_feed_texture = camera_feed.get_texture()
+		camera_frame_size = camera_feed.get_frame_size()
+		_refresh_status("Câmera traseira ativa como sensor. A imagem não é exibida.")
+	else:
+		_refresh_status("Feed encontrado, mas não foi possível ativar a câmera.")
 
 func _toggle_connection() -> void:
 	if socket_open:
@@ -83,8 +126,8 @@ func _toggle_connection() -> void:
 
 func _start_tracking() -> void:
 	tracking_enabled = true
-	start_button.text = "SENSORES ATIVOS"
-	_refresh_status("Sensores ativos. Deixe o celular parado para calibrar.")
+	start_button.text = "TRACKING ATIVO"
+	_refresh_status("Tracking ativo. Deixe o celular parado para calibrar.")
 	_start_calibration()
 
 func _start_calibration() -> void:
@@ -101,22 +144,28 @@ func _process(delta: float) -> void:
 
 	if tracking_enabled:
 		_read_sensors(safe_delta)
-		if socket_open:
-			packet_accumulator += safe_delta
-			var packet_interval := 1.0 / SENSOR_SEND_HZ
-			if packet_accumulator >= packet_interval:
-				packet_accumulator = fmod(packet_accumulator, packet_interval)
-				_send_tracking_packet()
+
+	camera_sample_accumulator += safe_delta
+	if camera_sample_accumulator >= 1.0 / CAMERA_SAMPLE_HZ:
+		camera_sample_accumulator = fmod(camera_sample_accumulator, 1.0 / CAMERA_SAMPLE_HZ)
+		_sample_camera_sensor()
+
+	if tracking_enabled and socket_open:
+		packet_accumulator += safe_delta
+		var packet_interval := 1.0 / SENSOR_SEND_HZ
+		if packet_accumulator >= packet_interval:
+			packet_accumulator = fmod(packet_accumulator, packet_interval)
+			_send_tracking_packet()
 
 	$TeleportArc.head_position = player_camera.position
 	$TeleportArc.head_rotation = head_rotation
 	_update_sensor_status()
+	_update_camera_status()
 
 func _read_sensors(delta: float) -> void:
 	gyro_raw = Input.get_gyroscope()
 	accel_raw = Input.get_accelerometer()
 	sensor_timestamp_us = Time.get_ticks_usec()
-	sensor_elapsed += delta
 
 	gyro_filtered = gyro_raw - gyro_bias
 	accel_filtered = accel_filtered.lerp(accel_raw, ACCEL_FILTER)
@@ -132,9 +181,8 @@ func _read_sensors(delta: float) -> void:
 			calibrate_button.text = "RECALIBRAR SENSORES"
 			_refresh_status("Calibração concluída. Bias gyro: %s" % _format_vector(gyro_bias))
 
-	# O gyro fornece a resposta rápida. O acelerômetro corrige apenas
-	# pitch/roll usando a direção da gravidade. O yaw continua relativo,
-	# porque o celular não possui uma referência absoluta de norte nesta etapa.
+	# Orientação inercial estável: gyro para resposta rápida + gravidade
+	# para correção lenta de pitch/roll.
 	head_rotation += gyro_filtered * delta
 
 	var accel_magnitude := accel_filtered.length()
@@ -149,10 +197,22 @@ func _read_sensors(delta: float) -> void:
 	head_rotation.y = wrapf(head_rotation.y, -PI, PI)
 	head_rotation.z = wrapf(head_rotation.z, -PI, PI)
 
-	# Positional tracking visual ainda não está implementado nesta etapa.
-	# Portanto não integramos acelerômetro duas vezes para inventar posição,
-	# evitando um deslocamento falso e enorme por drift.
+	# Ainda não usamos dupla integração do acelerômetro. A posição 6DoF
+	# será obtida quando o estimador visual/IMU estiver implementado.
 	head_position = Vector3(0.0, 1.65, 0.0)
+
+func _sample_camera_sensor() -> void:
+	if camera_feed == null or not camera_feed.is_active():
+		return
+
+	camera_feed_texture = camera_feed.get_texture()
+	camera_frame_size = camera_feed.get_frame_size()
+	camera_last_sample_us = Time.get_ticks_usec()
+	camera_sample_count += 1
+
+	# A textura é mantida apenas como fonte para o futuro estimador visual.
+	# Nenhum Control, Sprite, SubViewport ou material recebe essa textura.
+	# Portanto a imagem da câmera nunca é apresentada ao jogador.
 
 func _send_test_packet() -> void:
 	if not socket_open:
@@ -162,11 +222,12 @@ func _send_test_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_handshake",
-		"version": 2,
+		"version": 3,
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 2
+		"sensor_stage": 3,
+		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
 	var err := udp.put_packet(bytes)
@@ -176,10 +237,10 @@ func _send_tracking_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_tracking",
-		"version": 2,
+		"version": 3,
 		"sequence": packet_sequence,
 		"timestamp_us": sensor_timestamp_us,
-		"sensor_stage": 2,
+		"sensor_stage": 3,
 		"head_rotation": [head_rotation.x, head_rotation.y, head_rotation.z],
 		"head_position": [head_position.x, head_position.y, head_position.z],
 		"gyroscope": [gyro_raw.x, gyro_raw.y, gyro_raw.z],
@@ -187,6 +248,19 @@ func _send_tracking_packet() -> void:
 		"accelerometer": [accel_raw.x, accel_raw.y, accel_raw.z],
 		"accelerometer_filtered": [accel_filtered.x, accel_filtered.y, accel_filtered.z],
 		"gyro_bias": [gyro_bias.x, gyro_bias.y, gyro_bias.z],
+		"camera_sensor": {
+			"active": camera_active,
+			"frame_width": camera_frame_size.x,
+			"frame_height": camera_frame_size.y,
+			"sample_count": camera_sample_count,
+			"last_sample_us": camera_last_sample_us,
+			"visible_to_user": false
+		},
+		"visual_tracking": {
+			"provider": "camera_feed_ready_visual_estimator_pending",
+			"position_valid": false,
+			"rotation_correction_valid": false
+		},
 		"hand_tracking": {
 			"provider": "pending_camera_provider",
 			"left": [],
@@ -206,6 +280,21 @@ func _update_sensor_status() -> void:
 		_format_vector(gyro_filtered),
 		_format_vector(accel_filtered),
 		_format_vector(gyro_bias)
+	]
+
+func _update_camera_status() -> void:
+	if not is_instance_valid(camera_status):
+		return
+
+	var state := "SEM FEED"
+	if camera_available:
+		state = "ATIVA / SENSOR INVISÍVEL" if camera_active else "FEED ENCONTRADO / INATIVO"
+
+	camera_status.text = "CÂMERA: %s\nFRAME: %dx%d\nAMOSTRAS: %d" % [
+		state,
+		camera_frame_size.x,
+		camera_frame_size.y,
+		camera_sample_count
 	]
 
 func _format_vector(value: Vector3) -> String:
