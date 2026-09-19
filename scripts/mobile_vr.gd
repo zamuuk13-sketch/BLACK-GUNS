@@ -61,6 +61,9 @@ var hand_confidence := 0.0
 var left_hand_landmarks: Array[Vector3] = []
 var right_hand_landmarks: Array[Vector3] = []
 var hand_timestamp_us := 0
+var hand_frame_delta := 0.016
+var previous_left_palm := Vector3.ZERO
+var previous_right_palm := Vector3.ZERO
 
 @onready var status: Label = $UI/Panel/Status
 @onready var sensor_status: Label = $UI/Panel/SensorStatus
@@ -74,6 +77,9 @@ var hand_timestamp_us := 0
 @onready var ip_edit: LineEdit = $UI/Panel/Ip
 @onready var port_edit: LineEdit = $UI/Panel/Port
 @onready var player_camera: Camera3D = $PlayerCamera
+@onready var hand_interaction: Node = $HandInteraction
+@onready var left_hand_skeleton: Node3D = $PlayerCamera/LeftHandSkeleton
+@onready var right_hand_skeleton: Node3D = $PlayerCamera/RightHandSkeleton
 
 func _ready() -> void:
 	connect_button.pressed.connect(_toggle_connection)
@@ -82,7 +88,7 @@ func _ready() -> void:
 	test_button.pressed.connect(_send_test_packet)
 	_request_camera_permission()
 	_start_camera_sensor()
-	_refresh_status("Etapa 5 pronta. Hand tracking real aguardando backend Android.")
+	_refresh_status("Etapa 8 pronta. Mãos com interação física, grab e throw.")
 	_update_sensor_status()
 	_update_camera_status()
 	_update_visual_status()
@@ -199,6 +205,8 @@ func _process(delta: float) -> void:
 
 	$TeleportArc.head_position = player_camera.position
 	$TeleportArc.head_rotation = head_rotation
+	if is_instance_valid(hand_interaction):
+		hand_interaction.update_hands(left_hand_skeleton, right_hand_skeleton, hand_frame_delta)
 	_update_sensor_status()
 	_update_camera_status()
 	_update_visual_status()
@@ -268,6 +276,7 @@ func _sample_camera_sensor() -> void:
 	# A imagem continua invisível; somente os dados dela alimentam os estimadores.
 
 func _sample_hand_tracker() -> void:
+	var previous_time := hand_timestamp_us
 	if not hand_tracker.is_available() or camera_feed_texture == null:
 		return
 	var image := camera_feed_texture.get_image()
@@ -279,6 +288,8 @@ func _sample_hand_tracker() -> void:
 	hands_detected = int(result.get("hands", 0))
 	hand_confidence = float(result.get("confidence", 0.0))
 	hand_timestamp_us = int(result.get("timestamp_us", 0))
+	if previous_time > 0 and hand_timestamp_us > previous_time:
+		hand_frame_delta = clamp(float(hand_timestamp_us - previous_time) / 1000000.0, 0.001, 0.2)
 	left_hand_landmarks = _parse_landmarks(str(result.get("left", "")))
 	right_hand_landmarks = _parse_landmarks(str(result.get("right", "")))
 
@@ -310,11 +321,11 @@ func _send_test_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_handshake",
-		"version": 6,
+		"version": 7,
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 7,
+		"sensor_stage": 8,
 		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
@@ -325,10 +336,10 @@ func _send_tracking_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_tracking",
-		"version": 5,
+		"version": 7,
 		"sequence": packet_sequence,
 		"timestamp_us": sensor_timestamp_us,
-		"sensor_stage": 5,
+		"sensor_stage": 8,
 		"head_rotation": [head_rotation.x, head_rotation.y, head_rotation.z],
 		"head_position": [head_position.x, head_position.y, head_position.z],
 		"gyroscope": [gyro_raw.x, gyro_raw.y, gyro_raw.z],
@@ -364,6 +375,10 @@ func _send_tracking_packet() -> void:
 			"timestamp_us": hand_timestamp_us,
 			"left": _landmarks_to_arrays(left_hand_landmarks),
 			"right": _landmarks_to_arrays(right_hand_landmarks)
+		},
+		"physical_interaction": {
+			"stage": 8,
+			"grabbing_enabled": true
 		}
 	}
 	udp.put_packet(JSON.stringify(packet).to_utf8_buffer())
