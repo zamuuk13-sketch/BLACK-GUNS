@@ -1,0 +1,38 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://pc/scenes/PCEnvironment.tscn" id="1"]
+[ext_resource type="Script" path="res://pc/scripts/pc_connection.gd" id="2"]
+
+[node name="BlackGunsPCConnection" instance=ExtResource("1")]
+
+[node name="ConnectionManager" type="Node" parent="."]
+script = ExtResource("2")
+
+[node name="ConnectionPanel" type="Panel" parent="UI"]
+offset_left = 24.0
+offset_top = 160.0
+offset_right = 430.0
+offset_bottom = 330.0
+
+[node name="Title" type="Label" parent="UI/ConnectionPanel"]
+offset_left = 18.0
+offset_top = 14.0
+offset_right = 380.0
+offset_bottom = 42.0
+theme_override_font_sizes/font_size = 20
+text = "CONEXÃO DO CELULAR"
+
+[node name="Info" type="Label" parent="UI/ConnectionPanel"]
+offset_left = 18.0
+offset_top = 52.0
+offset_right = 380.0
+offset_bottom = 105.0
+text = "Wi-Fi: mesma rede do PC\nUSB: use pc/tools/usb_tunnel.bat"
+
+[node name="ConnectionStatus" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 345.0
+offset_right = 700.0
+offset_bottom = 405.0
+theme_override_font_sizes/font_size = 18
+text = "Servidor iniciando..."
