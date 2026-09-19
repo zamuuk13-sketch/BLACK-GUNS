@@ -2,6 +2,7 @@
 config/name="Black Guns Mobile VR"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
+config/name="Black Guns Mobile VR • Stage 9"
 
 [android]
 permissions = PackedStringArray("android.permission.CAMERA")
