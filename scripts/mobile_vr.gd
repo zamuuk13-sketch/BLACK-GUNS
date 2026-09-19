@@ -85,6 +85,7 @@ func _ready() -> void:
 	add_child(pc_client)
 	pc_client.connection_state_changed.connect(_on_pc_connection_state_changed)
 	pc_client.server_packet_received.connect(_on_pc_server_packet)
+	pc_client.video_frame_received.connect(_on_video_frame_received)
 	connect_button.pressed.connect(_toggle_connection)
 	start_button.pressed.connect(_start_tracking)
 	calibrate_button.pressed.connect(_start_calibration)
@@ -184,9 +185,16 @@ func _on_pc_connection_state_changed(is_connected: bool, message: String) -> voi
 			connect_button.text = "CONECTAR AO PC"
 	_refresh_status(message)
 
+func _on_video_frame_received(eye: int, image: Image) -> void:
+	var vr_display := get_node_or_null("VRDisplay")
+	if vr_display:
+		vr_display.set_stream_frame(eye, image)
+
 func _on_pc_server_packet(packet: Dictionary) -> void:
 	if str(packet.get("type", "")) == "hello_ack":
-		_refresh_status("✓ PC conectado • handshake BLACK_GUNS_VR v%d OK" % int(packet.get("version", 0)))
+		var w := int(packet.get("stream_width", 640))
+		var h := int(packet.get("stream_height", 360))
+		_refresh_status("✓ PC conectado • VR stream %dx%d @ %d FPS" % [w, h, int(packet.get("stream_fps", 20))])
 
 func _start_tracking() -> void:
 	tracking_enabled = true
