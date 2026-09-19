@@ -275,6 +275,16 @@ func _sample_hand_tracker() -> void:
 	left_hand_landmarks = _parse_landmarks(str(result.get("left", "")))
 	right_hand_landmarks = _parse_landmarks(str(result.get("right", "")))
 
+
+func _update_3d_hands() -> void:
+	if not hand_tracker.is_available():
+		left_hand_skeleton.set_tracked_visible(false)
+		right_hand_skeleton.set_tracked_visible(false)
+		return
+
+	left_hand_skeleton.set_landmarks(left_hand_landmarks, hand_frame_delta)
+	right_hand_skeleton.set_landmarks(right_hand_landmarks, hand_frame_delta)
+
 func _parse_landmarks(encoded: String) -> Array[Vector3]:
 	var points: Array[Vector3] = []
 	if encoded.is_empty():
