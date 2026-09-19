@@ -1,47 +1,43 @@
 # BLACK GUNS
 
-## Etapa 1 — Base do Mobile VR
+## Etapa 2 — Sensores do Mobile VR
 
-Esta etapa cria a fundação do aplicativo Android que será o companheiro VR/tracking do Black Guns.
+A Etapa 2 fortalece a camada de sensores do aplicativo Android. O celular continua sendo um dispositivo de tracking: a câmera traseira é reservada para visão computacional futura e sua imagem não é exibida ao jogador.
 
-### O que foi concluído
+### O que foi implementado
 
-- Projeto Godot 4 com cena principal 3D.
-- Ambiente de teste com piso, iluminação, obstáculos e câmera.
-- Interface inicial do Mobile VR.
-- Campo para IP do PC e porta UDP.
-- Abertura/fechamento do socket UDP.
-- Pacote de handshake manual para validar o transporte.
-- Estrutura versionada dos pacotes de tracking.
-- Leitura inicial de giroscópio e acelerômetro.
-- Pedido de permissão da câmera no Android.
-- A câmera do celular continua sendo reservada para tracking; a imagem da câmera não é exibida.
-- Esqueleto de 21 pontos por mão preparado para receber um provider real.
-- Base visual da curva azul de teleporte.
+- Leitura contínua do giroscópio.
+- Leitura contínua do acelerômetro.
+- Calibração automática do bias do giroscópio durante 2 segundos.
+- Botão para recalibrar os sensores.
+- Filtro passa-baixa do acelerômetro.
+- Correção lenta de pitch/roll usando a direção da gravidade.
+- Integração do giroscópio para resposta rápida de orientação.
+- Timestamps em microssegundos.
+- Sequência de pacotes.
+- Envio de tracking limitado a 60 Hz quando o socket estiver aberto.
+- Pacote de tracking versão 2 com valores brutos, filtrados e bias do gyro.
+- Painel local mostrando estado, gyro, acelerômetro e bias.
+- Remoção da integração dupla do acelerômetro para posição: nesta etapa ainda não existe positional tracking visual real, então a posição não é inventada por drift.
 
-### Como testar a Etapa 1
+### Importante
+
+Esta etapa ainda **não é positional tracking 6DoF real**. O gyro fornece orientação relativa e o acelerômetro ajuda a corrigir pitch/roll pela gravidade. O yaw permanece relativo e pode sofrer drift.
+
+A próxima camada será a fusão com visão da câmera traseira para obter tracking espacial/posicional de verdade. A câmera continua invisível ao usuário.
+
+### Teste
 
 1. Abra o projeto no Godot 4.
-2. Execute a cena principal.
-3. No celular, informe o IP do PC e a porta 42424.
-4. Toque em ABRIR CONEXÃO UDP.
-5. Toque em INICIAR SENSORES.
-6. Use ENVIAR PACOTE DE TESTE para verificar que o aplicativo consegue enviar um datagrama.
+2. Rode o app no Android.
+3. Toque em **INICIAR SENSORES**.
+4. Durante a calibração, deixe o celular completamente parado por aproximadamente 2 segundos.
+5. Movimente o celular e observe os valores do gyro/acelerômetro.
+6. Use **RECALIBRAR SENSORES** quando necessário.
+7. A conexão UDP continua apenas como estrutura de transporte; o receiver do PC ainda não faz parte desta etapa.
 
-> Importante: abrir um socket UDP não significa que o PC já respondeu. O receiver do PC será implementado em uma etapa própria.
+### Próximas etapas
 
-### Protocolo inicial
+**Mobile Etapa 3 — Head tracking visual/6DoF:** câmera + sensores, correção de drift e movimento espacial.
 
-Cada pacote possui type, version, sequence e timestamp_ms.
-
-O handshake usa black_guns_handshake.
-
-O tracking usa black_guns_tracking.
-
-O campo hand_tracking já possui left e right, mas os landmarks reais ainda não foram implementados.
-
-### Próxima etapa
-
-**Etapa 2 — Sensores:** calibrar e estruturar gyro/acelerômetro, orientação da cabeça, timestamps, filtros e envio consistente dos dados.
-
-Depois entram tracking visual 6DoF, hand tracking real, conexão PC↔celular completa e streaming estéreo L/R.
+Depois: hand tracking real, mãos 3D, teleporte/interação, display estéreo e, somente então, conexão completa com o jogo no PC.
