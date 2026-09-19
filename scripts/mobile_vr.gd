@@ -87,6 +87,13 @@ func _ready() -> void:
 	_update_camera_status()
 	_update_visual_status()
 	_update_hand_status()
+	$TeleportArc.set_hand_landmarks(left_hand_landmarks, right_hand_landmarks)
+	if Input.is_key_pressed(KEY_F):
+		$TeleportArc.request_confirm()
+	if $TeleportArc.consume_teleport():
+		player_camera.position = $TeleportArc.destination + Vector3.UP * 1.65
+		head_position = player_camera.position
+		visual_position_offset = player_camera.position - Vector3(0.0, 1.65, 0.0)
 
 func _exit_tree() -> void:
 	if camera_feed != null:
