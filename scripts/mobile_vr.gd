@@ -1,7 +1,7 @@
 extends Node3D
 
-const DEFAULT_PC_HOST := "192.168.4.1"
-const DEFAULT_PC_PORT := 42424
+const DEFAULT_PC_HOST := ""
+const DEFAULT_PC_PORT := 39100
 const SENSOR_SEND_HZ := 60.0
 const ACCEL_FILTER := 0.12
 const ORIENTATION_CORRECTION := 0.02
@@ -13,7 +13,7 @@ const HAND_SAMPLE_HZ := 8.0
 const HAND_IMAGE_WIDTH := 256
 const HAND_IMAGE_HEIGHT := 192
 
-var udp := PacketPeerUDP.new()
+var pc_client := BlackGunsPCClient.new()
 var socket_open := false
 var tracking_enabled := false
 
@@ -82,6 +82,9 @@ var previous_right_palm := Vector3.ZERO
 @onready var right_hand_skeleton: Node3D = $PlayerCamera/RightHandSkeleton
 
 func _ready() -> void:
+	add_child(pc_client)
+	pc_client.connection_state_changed.connect(_on_pc_connection_state_changed)
+	pc_client.server_packet_received.connect(_on_pc_server_packet)
 	connect_button.pressed.connect(_toggle_connection)
 	start_button.pressed.connect(_start_tracking)
 	calibrate_button.pressed.connect(_start_calibration)
@@ -105,7 +108,6 @@ func _exit_tree() -> void:
 	if camera_feed != null:
 		camera_feed.set_active(false)
 	hand_tracker.close()
-	udp.close()
 
 func _request_camera_permission() -> void:
 	if OS.has_feature("android") and OS.has_method("request_permission"):
@@ -141,29 +143,50 @@ func _start_camera_sensor() -> void:
 		_refresh_status("Feed encontrado, mas não foi possível ativar a câmera.")
 
 func _toggle_connection() -> void:
-	if socket_open:
-		udp.close()
+	if pc_client.is_connected() or pc_client.connecting:
+		pc_client.disconnect_from_host()
 		socket_open = false
-		connect_button.text = "ABRIR CONEXÃO UDP"
-		_refresh_status("Conexão UDP fechada.")
+		connect_button.text = "CONECTAR AO PC"
+		_refresh_status("Conexão com o PC fechada.")
 		return
 
 	var host := ip_edit.text.strip_edges()
 	var port := int(port_edit.text)
-	if host.is_empty():
-		host = DEFAULT_PC_HOST
 	if port <= 0 or port > 65535:
 		port = DEFAULT_PC_PORT
 		port_edit.text = str(port)
 
-	var err := udp.connect_to_host(host, port)
-	if err != OK:
-		_refresh_status("Não foi possível abrir o socket UDP: %s" % err)
+	if host.is_empty() or host.to_upper() == "AUTO":
+		_refresh_status("Procurando o PC na rede local...")
+		connect_button.text = "PROCURANDO PC..."
+		if not pc_client.discover_pc():
+			connect_button.text = "CONECTAR AO PC"
+			_refresh_status("Não foi possível iniciar a descoberta UDP.")
 		return
 
-	socket_open = true
-	connect_button.text = "FECHAR CONEXÃO UDP"
-	_refresh_status("Socket UDP aberto para %s:%d." % [host, port])
+	var err := pc_client.connect_to_host(host, port)
+	if err != OK:
+		connect_button.text = "CONECTAR AO PC"
+		_refresh_status("Não foi possível iniciar TCP para %s:%d: %s" % [host, port, err])
+		return
+
+	connect_button.text = "CONECTANDO..."
+	_refresh_status("Conectando ao PC %s:%d..." % [host, port])
+
+func _on_pc_connection_state_changed(is_connected: bool, message: String) -> void:
+	socket_open = is_connected
+	if is_connected:
+		connect_button.text = "DESCONECTAR DO PC"
+	else:
+		if pc_client.connecting:
+			connect_button.text = "CONECTANDO..."
+		else:
+			connect_button.text = "CONECTAR AO PC"
+	_refresh_status(message)
+
+func _on_pc_server_packet(packet: Dictionary) -> void:
+	if str(packet.get("type", "")) == "hello_ack":
+		_refresh_status("✓ PC conectado • handshake BLACK_GUNS_VR v%d OK" % int(packet.get("version", 0)))
 
 func _start_tracking() -> void:
 	tracking_enabled = true
@@ -196,7 +219,7 @@ func _process(delta: float) -> void:
 		hand_sample_accumulator = fmod(hand_sample_accumulator, 1.0 / HAND_SAMPLE_HZ)
 		_sample_hand_tracker()
 
-	if tracking_enabled and socket_open:
+	if tracking_enabled and pc_client.is_connected():
 		packet_accumulator += safe_delta
 		var packet_interval := 1.0 / SENSOR_SEND_HZ
 		if packet_accumulator >= packet_interval:
@@ -321,16 +344,16 @@ func _send_test_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_handshake",
-		"version": 7,
+		"version": 8,
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 8,
+		"sensor_stage": 9,
 		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
-	var err := udp.put_packet(bytes)
-	_refresh_status("Pacote de teste enviado (%d bytes). Resultado: %s" % [bytes.size(), err])
+	var err := pc_client.send_packet(packet)
+	_refresh_status("Pacote de teste enviado via TCP (%d bytes)." % bytes.size())
 
 func _send_tracking_packet() -> void:
 	packet_sequence += 1
@@ -381,7 +404,7 @@ func _send_tracking_packet() -> void:
 			"grabbing_enabled": true
 		}
 	}
-	udp.put_packet(JSON.stringify(packet).to_utf8_buffer())
+	pc_client.send_tracking(packet)
 
 func _update_sensor_status() -> void:
 	if not is_instance_valid(sensor_status):
