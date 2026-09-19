@@ -24,6 +24,7 @@ func _process(_delta: float) -> void:
 
 func discover_pc() -> bool:
     discovery.close()
+    video_udp.close()
     var err := discovery.bind(0)
     if err != OK:
         return false
@@ -87,7 +88,8 @@ func _poll_tcp() -> void:
                 "version": VERSION,
                 "transport": "tcp",
                 "device": "android_mobile_vr",
-                "client_time_us": Time.get_ticks_usec()
+                "client_time_us": Time.get_ticks_usec(),
+                "video_port": VIDEO_PORT
             })
         var available := tcp.get_available_bytes()
         if available > 0:
