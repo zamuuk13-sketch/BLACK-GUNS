@@ -1,8 +1,9 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/mobile_vr.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/hand_skeleton.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/teleport_arc.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/hand_interaction.gd" id="4"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -30,6 +31,17 @@ roughness = 0.88
 [sub_resource type="StandardMaterial3D" id="CoverMat"]
 albedo_color = Color(0.11, 0.13, 0.16, 1)
 roughness = 0.72
+
+[sub_resource type="SphereMesh" id="GrabMesh"]
+radius = 0.22
+height = 0.44
+
+[sub_resource type="SphereShape3D" id="GrabShape"]
+radius = 0.22
+
+[sub_resource type="StandardMaterial3D" id="GrabMat"]
+albedo_color = Color(0.95, 0.55, 0.08, 1)
+roughness = 0.5
 
 [node name="BlackGunsMobileVR" type="Node3D"]
 script = ExtResource("1")
@@ -73,6 +85,33 @@ material_override = SubResource("CoverMat")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CoverB"]
 shape = SubResource("Shape_cover")
 
+[node name="GrabObjectA" type="RigidBody3D" parent="."]
+position = Vector3(0.55, 1.1, 2.7)
+mass = 0.5
+groups = ["grabbable"]
+
+[node name="Mesh" type="MeshInstance3D" parent="GrabObjectA"]
+mesh = SubResource("GrabMesh")
+material_override = SubResource("GrabMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GrabObjectA"]
+shape = SubResource("GrabShape")
+
+[node name="GrabObjectB" type="RigidBody3D" parent="."]
+position = Vector3(-0.65, 1.0, 2.5)
+mass = 0.35
+groups = ["grabbable"]
+
+[node name="Mesh" type="MeshInstance3D" parent="GrabObjectB"]
+mesh = SubResource("GrabMesh")
+material_override = SubResource("GrabMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GrabObjectB"]
+shape = SubResource("GrabShape")
+
+[node name="HandInteraction" type="Node3D" parent="."]
+script = ExtResource("4")
+
 [node name="PlayerCamera" type="Camera3D" parent="."]
 position = Vector3(0, 1.65, 4.2)
 current = true
@@ -111,7 +150,7 @@ offset_top = 60.0
 offset_right = 380.0
 offset_bottom = 92.0
 theme_override_font_sizes/font_size = 15
-text = "MOBILE VR • ETAPA 7 — TELEPORTE"
+text = "MOBILE VR • ETAPA 8 — INTERAÇÃO FÍSICA"
 
 [node name="Status" type="Label" parent="UI/Panel"]
 offset_left = 22.0
@@ -120,7 +159,7 @@ offset_right = 390.0
 offset_bottom = 166.0
 theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
 theme_override_font_sizes/font_size = 16
-text = "Etapa 7: arco de teleporte + alvo + confirmação."
+text = "Etapa 8: grab, release, throw e objetos físicos."
 
 [node name="SensorStatus" type="Label" parent="UI/Panel"]
 offset_left = 22.0
@@ -213,4 +252,4 @@ offset_right = 1200.0
 offset_bottom = 760.0
 theme_override_colors/font_color = Color(0.55, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 16
-text = "ETAPA 7: teleporte com arco, alvo, colisão e confirmação. Câmera continua invisível."
+text = "ETAPA 8: use pinça polegar+indicador para pegar objetos, solte para arremessar. Câmera continua invisível."
