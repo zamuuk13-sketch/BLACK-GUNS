@@ -187,7 +187,16 @@ theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
 theme_override_font_sizes/font_size = 13
 text = "CÂMERA: INICIALIZANDO...\\nFRAME: 0x0\\nAMOSTRAS: 0"
 
-[node name="VisualStatus" type="Label" parent="UI/Panel"]\noffset_left = 22.0\noffset_top = 326.0\noffset_right = 390.0\noffset_bottom = 386.0\ntheme_override_colors/font_color = Color(0.72, 0.88, 1, 1)\ntheme_override_font_sizes/font_size = 13\ntext = "VISUAL: INICIALIZANDO...\\nFLOW dx/dy: 0.00 / 0.00\\nPONTOS: 0  CONFIANÇA: 0.00"\n\n[node name="HandStatus" type="Label" parent="UI/Panel"]
+[node name="VisualStatus" type="Label" parent="UI/Panel"]
+offset_left = 22.0
+offset_top = 326.0
+offset_right = 390.0
+offset_bottom = 386.0
+theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "VISUAL: INICIALIZANDO...\\nFLOW dx/dy: 0.00 / 0.00\\nPONTOS: 0  CONFIANÇA: 0.00"
+
+[node name="HandStatus" type="Label" parent="UI/Panel"]
 offset_left = 22.0
 offset_top = 386.0
 offset_right = 390.0
