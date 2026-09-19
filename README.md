@@ -45,6 +45,18 @@ Implementado:
 - envio de tracking para o PC;
 - suporte ao túnel USB via ADB reverse.
 
+### PC — Stage 3
+Implementado:
+- captura estéreo L/R no PC por SubViewport;
+- renderização dos dois olhos a partir da câmera 3D do PC;
+- JPEG em baixa resolução configurável;
+- streaming UDP fragmentado para reduzir o impacto de pacotes grandes;
+- 20 FPS e 640×360 por olho como configuração inicial;
+- cliente Android recompõe os chunks e decodifica os JPEGs;
+- display mobile troca as texturas locais pelos frames recebidos do PC.
+
+**Nota:** esta primeira implementação do Stage 3 usa Wi-Fi/UDP para o vídeo. O caminho USB continua disponível para tracking/TCP e terá transporte de vídeo dedicado posteriormente.
+
 ### PC — Stage 2
 Implementado:
 - ambiente 3D de teste;
@@ -87,7 +99,8 @@ Build:
 ## O que ainda não está concluído
 
 Estas partes são intencionalmente posteriores:
-- streaming real PC → celular;
+- transporte de vídeo otimizado para USB;
+- streaming real PC → celular em codec de vídeo dedicado (H.264/H.265/WebRTC) para substituir o protótipo JPEG/UDP;
 - compressão/codec de vídeo para baixa latência;
 - transporte dedicado de frames VR L/R;
 - aplicação final de lens distortion no display;
@@ -100,4 +113,4 @@ O protótipo de conexão não deve ser confundido com streaming VR: nesta fase o
 
 ## Próximo passo
 
-**PC Stage 3 — VR streaming:** preparar o PC para renderizar os olhos esquerdo/direito e transportar os frames para o aplicativo Android, mantendo o caminho separado do canal de tracking para priorizar baixa latência.
+**PC Stage 4 — integração do tracking no PC:** aplicar rotação/posição recebidas do celular às câmeras VR do PC e sincronizar a pose com o stream L/R. Depois disso, podemos evoluir o transporte para codec de vídeo dedicado e otimizar latência.
