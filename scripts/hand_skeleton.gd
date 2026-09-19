@@ -126,6 +126,27 @@ func _update_bone(bone: MeshInstance3D, a: Vector3, b: Vector3) -> void:
 	bone.scale = Vector3(1.0, length, 1.0)
 	bone.quaternion = Quaternion(Vector3.UP, direction.normalized())
 
+func get_palm_world_position() -> Vector3:
+	if smoothed_points.size() < JOINT_COUNT:
+		return global_position
+	return to_global(smoothed_points[0])
+
+func get_index_tip_world_position() -> Vector3:
+	if smoothed_points.size() < JOINT_COUNT:
+		return global_position
+	return to_global(smoothed_points[8])
+
+func get_thumb_tip_world_position() -> Vector3:
+	if smoothed_points.size() < JOINT_COUNT:
+		return global_position
+	return to_global(smoothed_points[4])
+
+func get_pinch_strength() -> float:
+	if smoothed_points.size() < JOINT_COUNT:
+		return 0.0
+	var pinch_distance := smoothed_points[4].distance_to(smoothed_points[8])
+	return clamp(1.0 - (pinch_distance / 0.11), 0.0, 1.0)
+
 func set_tracked_visible(value: bool) -> void:
 	visible = value
 	tracked = value
