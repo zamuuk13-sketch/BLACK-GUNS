@@ -9,8 +9,10 @@ var tcp_server := TCPServer.new()
 var udp := PacketPeerUDP.new()
 var client: StreamPeerTCP
 var client_buffer := ""
+var video_port := 39103
 
 @onready var status_label: Label = get_node_or_null("../UI/ConnectionStatus")
+@onready var vr_stream: Node = get_node_or_null("../VRStream")
 
 func _ready() -> void:
     udp.set_broadcast_enabled(true)
@@ -52,8 +54,12 @@ func _receive_tcp() -> void:
 func _handle_packet(packet: Dictionary) -> void:
     match str(packet.get("type", "")):
         "hello":
-            _send_packet({"type":"hello_ack","protocol":PROTOCOL,"version":VERSION,"server_time_us":Time.get_ticks_usec()})
-            _set_status("✓ Handshake OK • Black Guns Mobile conectado")
+            video_port = int(packet.get("video_port", 39103))
+            _send_packet({"type":"hello_ack","protocol":PROTOCOL,"version":VERSION,"video_port":video_port,"stream_width":640,"stream_height":360,"stream_fps":20,"server_time_us":Time.get_ticks_usec()})
+            if vr_stream and client:
+                vr_stream.video_port = video_port
+                vr_stream.start_stream(client.get_connected_host())
+            _set_status("✓ Handshake OK • Mobile conectado • VR stream ativo")
         "ping":
             _send_packet({"type":"pong","client_time_us":packet.get("client_time_us",0),"server_time_us":Time.get_ticks_usec()})
         "tracking":
@@ -75,6 +81,8 @@ func _send_packet(packet: Dictionary) -> void:
     client.put_data((JSON.stringify(packet) + "\n").to_utf8_buffer())
 
 func _close_client() -> void:
+    if vr_stream:
+        vr_stream.stop_stream()
     if client != null:
         client.disconnect_from_host()
     client = null
