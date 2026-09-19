@@ -3,6 +3,9 @@ config/name="Black Guns Mobile VR"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
+[android]
+permissions = PackedStringArray("android.permission.CAMERA")
+
 [display]
 window/size/viewport_width=1280
 window/size/viewport_height=720
