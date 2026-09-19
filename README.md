@@ -2,7 +2,7 @@
 
 ## Mobile VR — Etapa 3: câmera + base de head tracking
 
-A Etapa 3 adiciona a câmera traseira como **sensor invisível** do aplicativo. A imagem da câmera não é colocada em nenhum controle visual, viewport ou tela do usuário.
+A Etapa 4 evolui a câmera traseira invisível para um **estimador visual leve**, mantendo o IMU da etapa anterior. A imagem da câmera continua sendo apenas uma fonte interna de dados e não é colocada em nenhum controle visual, viewport ou tela do usuário.
 
 ### O que foi implementado
 
@@ -13,9 +13,9 @@ A Etapa 3 adiciona a câmera traseira como **sensor invisível** do aplicativo. 
 - Leitura periódica da textura/frame size sem renderizar a imagem.
 - Contagem e timestamp das amostras da câmera.
 - Diagnóstico local do estado da câmera.
-- Pacotes de tracking versão 3 com metadados do sensor visual.
+- Pacotes de tracking versão 4 com movimento visual relativo, confiança, pontos rastreados e timestamps.
 - IMU da Etapa 2 continua integrada: gyro calibrado + acelerômetro filtrado + correção de pitch/roll.
-- Arquitetura preparada para um estimador visual que futuramente fará a fusão câmera + IMU.
+- Conversão dos frames para uma imagem pequena em tons de cinza para reduzir custo no celular.\n- Rastreamento de pequenos patches por block matching em uma grade de pontos.\n- Mediana dos vetores para rejeitar parte do ruído/outliers.\n- Confiança baseada na quantidade de pontos e no erro médio do matching.\n- Integração limitada do movimento visual em uma posição **relativa** para teste local.\n- Proteção contra passos excessivos para evitar explosões de posição.\n- Estado visual separado do IMU para futura fusão visual-inercial.
 
 ### O que ainda NÃO foi fingido
 
@@ -37,7 +37,7 @@ Também não há imagem da câmera na interface.
 
 ### Próxima etapa
 
-**Mobile Etapa 4 — estimador visual/inercial de head tracking e positional tracking:** processamento dos frames da câmera + IMU, rastreamento de movimento, referência espacial, correção de drift e posição relativa 6DoF.
+**Próxima evolução — VIO/6DoF:** fusão mais forte entre features visuais, gyro e acelerômetro, estabilização da referência espacial, rejeição de outliers, estimativa de profundidade/escala e correção de drift.
 
 Depois entram hand tracking real, mãos 3D, teleporte/interação e display estéreo.
 
