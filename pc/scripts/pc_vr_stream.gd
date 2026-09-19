@@ -22,17 +22,19 @@ var frame_id := 0
 var accumulator := 0.0
 var running := false
 var last_frame_time_us := 0
+var udp_socket := PacketPeerUDP.new()
 
 func _ready() -> void:
-    source_camera = get_node_or_null("../PCEnvironment/PlayerCamera")
-    if source_camera == null:
-        source_camera = get_node_or_null("../PlayerCamera")
+    source_camera = get_node_or_null("../PlayerCamera")
     _build_capture()
     set_process(true)
 
 func start_stream(target_ip: String) -> void:
     destination_ip = target_ip.strip_edges()
     running = not destination_ip.is_empty()
+    udp_socket.close()
+    if running:
+        udp_socket.set_dest_address(destination_ip, video_port)
     stream_status_changed.emit("VR stream: %s" % ("ativo → %s:%d" % [destination_ip, video_port] if running else "aguardando celular"))
 
 func stop_stream() -> void:
@@ -111,9 +113,7 @@ func _send_eye_frame(eye: int, image: Image) -> void:
     stream_status_changed.emit("VR stream ativo • frame %d • L/R %d bytes" % [frame_id, jpeg.size()])
 
 func _send_udp_chunks(eye: int, id: int, data: PackedByteArray) -> void:
-    var socket := PacketPeerUDP.new()
-    var err := socket.set_dest_address(destination_ip, video_port)
-    if err != OK:
+    if not running:
         return
 
     var total := int(ceil(float(data.size()) / float(udp_chunk_size)))
@@ -130,8 +130,10 @@ func _send_udp_chunks(eye: int, id: int, data: PackedByteArray) -> void:
         header.append_array(_u16(total))
         header.append_array(_u32(data.size()))
         header.append_array(payload)
-        socket.put_packet(header)
-    socket.close()
+        udp_socket.put_packet(header)
+
+func _exit_tree() -> void:
+    udp_socket.close()
 
 func _u16(value: int) -> PackedByteArray:
     return PackedByteArray([value & 255, (value >> 8) & 255])
