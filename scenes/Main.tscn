@@ -140,14 +140,14 @@ theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
 theme_override_font_sizes/font_size = 13
 text = "CÂMERA: INICIALIZANDO..."\nFRAME: 0x0\nAMOSTRAS: 0"
 
-[node name="VisualStatus" type="Label" parent="UI/Panel"]\noffset_left = 22.0\noffset_top = 326.0\noffset_right = 390.0\noffset_bottom = 386.0\ntheme_override_colors/font_color = Color(0.72, 0.88, 1, 1)\ntheme_override_font_sizes/font_size = 13\ntext = "VISUAL: INICIALIZANDO...\\nFLOW dx/dy: 0.00 / 0.00\\nPONTOS: 0  CONFIANÇA: 0.00"\n\n[node name="HandStatus" type="Label" parent="UI/Panel"]
+[node name="VisualStatus" type="Label" parent="UI/Panel"]\noffset_left = 22.0\noffset_top = 326.0\noffset_right = 390.0\noffset_bottom = 386.0\ntheme_override_colors/font_color = Color(0.72, 0.88, 1, 1)\ntheme_override_font_sizes/font_size = 13\ntext = "VISUAL: INICIALIZANDO...\nFLOW dx/dy: 0.00 / 0.00\nPONTOS: 0  CONFIANÇA: 0.00"\n\n[node name="HandStatus" type="Label" parent="UI/Panel"]
 offset_left = 22.0
 offset_top = 386.0
 offset_right = 390.0
 offset_bottom = 432.0
 theme_override_colors/font_color = Color(0.72, 0.88, 1, 1)
 theme_override_font_sizes/font_size = 12
-text = "MÃOS: BACKEND INDISPONÍVEL\\nDETECTADAS: 0  CONFIANÇA: 0.00\\nLANDMARKS L/R: 0 / 0"
+text = "MÃOS: BACKEND INDISPONÍVEL\nDETECTADAS: 0  CONFIANÇA: 0.00\nLANDMARKS L/R: 0 / 0"
 
 [node name="IpLabel" type="Label" parent="UI/Panel"]
 offset_left = 22.0
@@ -166,16 +166,16 @@ placeholder_text = "ex.: 192.168.1.10"
 
 [node name="PortLabel" type="Label" parent="UI/Panel"]
 offset_left = 260.0
-offset_top = 394.0
+offset_top = 440.0
 offset_right = 300.0
-offset_bottom = 424.0
+offset_bottom = 470.0
 text = "Porta"
 
 [node name="Port" type="LineEdit" parent="UI/Panel"]
 offset_left = 304.0
-offset_top = 390.0
+offset_top = 436.0
 offset_right = 378.0
-offset_bottom = 428.0
+offset_bottom = 474.0
 text = "42424"
 
 [node name="ConnectButton" type="Button" parent="UI/Panel"]
