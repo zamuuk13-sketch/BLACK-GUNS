@@ -1,43 +1,44 @@
 # BLACK GUNS
 
-## Etapa 2 — Sensores do Mobile VR
+## Mobile VR — Etapa 3: câmera + base de head tracking
 
-A Etapa 2 fortalece a camada de sensores do aplicativo Android. O celular continua sendo um dispositivo de tracking: a câmera traseira é reservada para visão computacional futura e sua imagem não é exibida ao jogador.
+A Etapa 3 adiciona a câmera traseira como **sensor invisível** do aplicativo. A imagem da câmera não é colocada em nenhum controle visual, viewport ou tela do usuário.
 
 ### O que foi implementado
 
-- Leitura contínua do giroscópio.
-- Leitura contínua do acelerômetro.
-- Calibração automática do bias do giroscópio durante 2 segundos.
-- Botão para recalibrar os sensores.
-- Filtro passa-baixa do acelerômetro.
-- Correção lenta de pitch/roll usando a direção da gravidade.
-- Integração do giroscópio para resposta rápida de orientação.
-- Timestamps em microssegundos.
-- Sequência de pacotes.
-- Envio de tracking limitado a 60 Hz quando o socket estiver aberto.
-- Pacote de tracking versão 2 com valores brutos, filtrados e bias do gyro.
-- Painel local mostrando estado, gyro, acelerômetro e bias.
-- Remoção da integração dupla do acelerômetro para posição: nesta etapa ainda não existe positional tracking visual real, então a posição não é inventada por drift.
+- Declaração da permissão Android da câmera.
+- Descoberta do feed de câmera pelo CameraServer.
+- Preferência pelo feed traseiro quando o Android informa a posição.
+- Ativação do feed da câmera em modo sensor.
+- Leitura periódica da textura/frame size sem renderizar a imagem.
+- Contagem e timestamp das amostras da câmera.
+- Diagnóstico local do estado da câmera.
+- Pacotes de tracking versão 3 com metadados do sensor visual.
+- IMU da Etapa 2 continua integrada: gyro calibrado + acelerômetro filtrado + correção de pitch/roll.
+- Arquitetura preparada para um estimador visual que futuramente fará a fusão câmera + IMU.
 
-### Importante
+### O que ainda NÃO foi fingido
 
-Esta etapa ainda **não é positional tracking 6DoF real**. O gyro fornece orientação relativa e o acelerômetro ajuda a corrigir pitch/roll pela gravidade. O yaw permanece relativo e pode sofrer drift.
+Esta etapa **não declara positional tracking 6DoF real**. Ter acesso aos frames da câmera não cria automaticamente uma estimativa de posição.
 
-A próxima camada será a fusão com visão da câmera traseira para obter tracking espacial/posicional de verdade. A câmera continua invisível ao usuário.
+O estimador visual/visual-inercial ainda precisa analisar os frames, encontrar características estáveis, acompanhar essas características entre frames e fundir esse movimento com o IMU. Isso será implementado como a próxima evolução do head/positional tracking.
 
-### Teste
+Também não há imagem da câmera na interface.
 
-1. Abra o projeto no Godot 4.
-2. Rode o app no Android.
-3. Toque em **INICIAR SENSORES**.
-4. Durante a calibração, deixe o celular completamente parado por aproximadamente 2 segundos.
-5. Movimente o celular e observe os valores do gyro/acelerômetro.
-6. Use **RECALIBRAR SENSORES** quando necessário.
-7. A conexão UDP continua apenas como estrutura de transporte; o receiver do PC ainda não faz parte desta etapa.
+### Teste no Android
 
-### Próximas etapas
+1. Compile e instale o APK.
+2. Conceda a permissão de câmera.
+3. Inicie os sensores.
+4. Observe o painel **CÂMERA**.
+5. O estado esperado é **ATIVA / SENSOR INVISÍVEL** e o contador de amostras deve aumentar.
+6. Movimente o aparelho e confirme que gyro/acelerômetro continuam atualizando.
+7. Nenhuma imagem da câmera deve aparecer na tela.
 
-**Mobile Etapa 3 — Head tracking visual/6DoF:** câmera + sensores, correção de drift e movimento espacial.
+### Próxima etapa
 
-Depois: hand tracking real, mãos 3D, teleporte/interação, display estéreo e, somente então, conexão completa com o jogo no PC.
+**Mobile Etapa 4 — estimador visual/inercial de head tracking e positional tracking:** processamento dos frames da câmera + IMU, rastreamento de movimento, referência espacial, correção de drift e posição relativa 6DoF.
+
+Depois entram hand tracking real, mãos 3D, teleporte/interação e display estéreo.
+
+A conexão completa com o jogo no PC continua para depois da construção do sistema VR mobile.
