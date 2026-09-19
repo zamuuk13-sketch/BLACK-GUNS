@@ -6,7 +6,9 @@ const SENSOR_SEND_HZ := 60.0
 const ACCEL_FILTER := 0.12
 const ORIENTATION_CORRECTION := 0.02
 const CALIBRATION_SECONDS := 2.0
-const CAMERA_SAMPLE_HZ := 15.0
+const CAMERA_SAMPLE_HZ := 10.0
+const VISUAL_POSITION_SCALE := 0.006
+const VISUAL_MAX_STEP := 0.035
 
 var udp := PacketPeerUDP.new()
 var socket_open := false
@@ -39,9 +41,20 @@ var camera_sample_accumulator := 0.0
 var camera_sample_count := 0
 var camera_last_sample_us := 0
 
+# Etapa 4: movimento visual relativo da câmera + fusão leve com IMU.
+var visual_estimator := BlackGunsVisualEstimator.new()
+var visual_tracking_valid := false
+var visual_dx := 0.0
+var visual_dy := 0.0
+var visual_confidence := 0.0
+var visual_tracked_points := 0
+var visual_timestamp_us := 0
+var visual_position_offset := Vector3.ZERO
+
 @onready var status: Label = $UI/Panel/Status
 @onready var sensor_status: Label = $UI/Panel/SensorStatus
 @onready var camera_status: Label = $UI/Panel/CameraStatus
+@onready var visual_status: Label = $UI/Panel/VisualStatus
 @onready var connect_button: Button = $UI/Panel/ConnectButton
 @onready var start_button: Button = $UI/Panel/StartButton
 @onready var calibrate_button: Button = $UI/Panel/CalibrateButton
@@ -226,7 +239,7 @@ func _send_test_packet() -> void:
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 3,
+		"sensor_stage": 4,
 		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
