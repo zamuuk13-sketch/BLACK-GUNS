@@ -303,11 +303,11 @@ func _send_test_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_handshake",
-		"version": 5,
+		"version": 6,
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 5,
+		"sensor_stage": 7,
 		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
