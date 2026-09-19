@@ -1,20 +1,27 @@
-# Black Guns — PC Stage 1
+# Black Guns — PC Stages 1–2
 
-## Ambiente 3D de teste
+## Stage 1 — Ambiente 3D
+A cena pc/scenes/PCEnvironment.tscn fornece o laboratório 3D inicial.
 
-Esta etapa cria uma cena PC independente para validar a base 3D antes da conexão com o celular.
+## Stage 2 — Conexão PC ↔ celular
+A cena pc/scenes/PCConnection.tscn adiciona o servidor de comunicação.
 
-Inclui:
-- sala de teste 18 × 18 m;
-- chão e paredes com colisão;
-- iluminação direcional e preenchimento;
-- obstáculos 3D;
-- alvos 3D;
-- câmera livre;
-- movimentação WASD;
-- movimento vertical Q/E;
-- mouse para olhar.
+### Protocolo
+- TCP: 39100
+- UDP discovery: 39101
+- protocolo: BLACK_GUNS_VR
+- versão: 1
+- mensagens: JSON delimitado por newline
 
-Abra a cena pc/scenes/PCEnvironment.tscn no Godot 4.4.
+O PC aceita hello, ping, tracking e disconnect.
+O PC responde hello_ack e pong.
 
-A cena principal do projeto mobile não foi alterada. A integração com o celular entra nas próximas etapas.
+### Wi-Fi
+O celular poderá descobrir o PC por UDP na mesma rede e depois abrir TCP em 39100.
+
+### USB
+pc/tools/usb_tunnel.bat usa adb reverse para criar:
+celular 127.0.0.1:39100 -> USB -> PC 127.0.0.1:39100
+
+### Limite desta etapa
+O transporte e handshake do lado PC estão preparados. O cliente Android/Godot será integrado antes do teste real PC ↔ celular. O streaming de vídeo fica para a etapa seguinte.
