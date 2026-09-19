@@ -9,6 +9,9 @@ const CALIBRATION_SECONDS := 2.0
 const CAMERA_SAMPLE_HZ := 10.0
 const VISUAL_POSITION_SCALE := 0.006
 const VISUAL_MAX_STEP := 0.035
+const HAND_SAMPLE_HZ := 8.0
+const HAND_IMAGE_WIDTH := 256
+const HAND_IMAGE_HEIGHT := 192
 
 var udp := PacketPeerUDP.new()
 var socket_open := false
@@ -51,10 +54,19 @@ var visual_tracked_points := 0
 var visual_timestamp_us := 0
 var visual_position_offset := Vector3.ZERO
 
+var hand_tracker := BlackGunsHandTracking.new()
+var hand_sample_accumulator := 0.0
+var hands_detected := 0
+var hand_confidence := 0.0
+var left_hand_landmarks: Array[Vector3] = []
+var right_hand_landmarks: Array[Vector3] = []
+var hand_timestamp_us := 0
+
 @onready var status: Label = $UI/Panel/Status
 @onready var sensor_status: Label = $UI/Panel/SensorStatus
 @onready var camera_status: Label = $UI/Panel/CameraStatus
 @onready var visual_status: Label = $UI/Panel/VisualStatus
+@onready var hand_status: Label = $UI/Panel/HandStatus
 @onready var connect_button: Button = $UI/Panel/ConnectButton
 @onready var start_button: Button = $UI/Panel/StartButton
 @onready var calibrate_button: Button = $UI/Panel/CalibrateButton
@@ -70,13 +82,16 @@ func _ready() -> void:
 	test_button.pressed.connect(_send_test_packet)
 	_request_camera_permission()
 	_start_camera_sensor()
-	_refresh_status("Etapa 3 pronta. Câmera reservada para tracking invisível.")
+	_refresh_status("Etapa 5 pronta. Hand tracking real aguardando backend Android.")
 	_update_sensor_status()
 	_update_camera_status()
+	_update_visual_status()
+	_update_hand_status()
 
 func _exit_tree() -> void:
 	if camera_feed != null:
 		camera_feed.set_active(false)
+	hand_tracker.close()
 	udp.close()
 
 func _request_camera_permission() -> void:
@@ -159,9 +174,14 @@ func _process(delta: float) -> void:
 		_read_sensors(safe_delta)
 
 	camera_sample_accumulator += safe_delta
+	hand_sample_accumulator += safe_delta
 	if camera_sample_accumulator >= 1.0 / CAMERA_SAMPLE_HZ:
 		camera_sample_accumulator = fmod(camera_sample_accumulator, 1.0 / CAMERA_SAMPLE_HZ)
 		_sample_camera_sensor()
+
+	if hand_sample_accumulator >= 1.0 / HAND_SAMPLE_HZ:
+		hand_sample_accumulator = fmod(hand_sample_accumulator, 1.0 / HAND_SAMPLE_HZ)
+		_sample_hand_tracker()
 
 	if tracking_enabled and socket_open:
 		packet_accumulator += safe_delta
@@ -174,6 +194,8 @@ func _process(delta: float) -> void:
 	$TeleportArc.head_rotation = head_rotation
 	_update_sensor_status()
 	_update_camera_status()
+	_update_visual_status()
+	_update_hand_status()
 
 func _read_sensors(delta: float) -> void:
 	gyro_raw = Input.get_gyroscope()
@@ -212,7 +234,7 @@ func _read_sensors(delta: float) -> void:
 
 	# Ainda não usamos dupla integração do acelerômetro. A posição 6DoF
 	# será obtida quando o estimador visual/IMU estiver implementado.
-	head_position = Vector3(0.0, 1.65, 0.0)
+	head_position = Vector3(0.0, 1.65, 0.0) + visual_position_offset
 
 func _sample_camera_sensor() -> void:
 	if camera_feed == null or not camera_feed.is_active():
@@ -223,9 +245,46 @@ func _sample_camera_sensor() -> void:
 	camera_last_sample_us = Time.get_ticks_usec()
 	camera_sample_count += 1
 
-	# A textura é mantida apenas como fonte para o futuro estimador visual.
-	# Nenhum Control, Sprite, SubViewport ou material recebe essa textura.
-	# Portanto a imagem da câmera nunca é apresentada ao jogador.
+	if camera_feed_texture != null:
+		var visual_result := visual_estimator.process_texture(camera_feed_texture)
+		visual_tracking_valid = visual_result.valid
+		visual_dx = visual_result.dx
+		visual_dy = visual_result.dy
+		visual_confidence = visual_result.confidence
+		visual_tracked_points = visual_result.tracked_points
+		visual_timestamp_us = visual_result.timestamp_us
+		if visual_tracking_valid and visual_confidence >= 0.25:
+			var relative_step := Vector3(-visual_dx, visual_dy, 0.0) * VISUAL_POSITION_SCALE
+			relative_step.x = clamp(relative_step.x, -VISUAL_MAX_STEP, VISUAL_MAX_STEP)
+			relative_step.y = clamp(relative_step.y, -VISUAL_MAX_STEP, VISUAL_MAX_STEP)
+			visual_position_offset += relative_step
+
+	# A imagem continua invisível; somente os dados dela alimentam os estimadores.
+
+func _sample_hand_tracker() -> void:
+	if not hand_tracker.is_available() or camera_feed_texture == null:
+		return
+	var image := camera_feed_texture.get_image()
+	if image == null or image.is_empty():
+		return
+	image.convert(Image.FORMAT_RGB8)
+	image.resize(HAND_IMAGE_WIDTH, HAND_IMAGE_HEIGHT, Image.INTERPOLATE_BILINEAR)
+	var result := hand_tracker.process_rgb_frame(image.get_data(), HAND_IMAGE_WIDTH, HAND_IMAGE_HEIGHT, Time.get_ticks_usec())
+	hands_detected = int(result.get("hands", 0))
+	hand_confidence = float(result.get("confidence", 0.0))
+	hand_timestamp_us = int(result.get("timestamp_us", 0))
+	left_hand_landmarks = _parse_landmarks(str(result.get("left", "")))
+	right_hand_landmarks = _parse_landmarks(str(result.get("right", "")))
+
+func _parse_landmarks(encoded: String) -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	if encoded.is_empty():
+		return points
+	for token in encoded.split(";"):
+		var values := token.split(",")
+		if values.size() == 3:
+			points.append(Vector3(float(values[0]), float(values[1]), float(values[2])))
+	return points
 
 func _send_test_packet() -> void:
 	if not socket_open:
@@ -235,7 +294,7 @@ func _send_test_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_handshake",
-		"version": 3,
+		"version": 5,
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
@@ -253,7 +312,7 @@ func _send_tracking_packet() -> void:
 		"version": 3,
 		"sequence": packet_sequence,
 		"timestamp_us": sensor_timestamp_us,
-		"sensor_stage": 3,
+		"sensor_stage": 5,
 		"head_rotation": [head_rotation.x, head_rotation.y, head_rotation.z],
 		"head_position": [head_position.x, head_position.y, head_position.z],
 		"gyroscope": [gyro_raw.x, gyro_raw.y, gyro_raw.z],
@@ -270,14 +329,25 @@ func _send_tracking_packet() -> void:
 			"visible_to_user": false
 		},
 		"visual_tracking": {
-			"provider": "camera_feed_ready_visual_estimator_pending",
-			"position_valid": false,
-			"rotation_correction_valid": false
+			"provider": "lightweight_monocular_block_matching",
+			"position_valid": visual_tracking_valid,
+			"position_is_relative": true,
+			"metric_scale_valid": false,
+			"rotation_correction_valid": false,
+			"dx": visual_dx,
+			"dy": visual_dy,
+			"confidence": visual_confidence,
+			"tracked_points": visual_tracked_points,
+			"timestamp_us": visual_timestamp_us
 		},
 		"hand_tracking": {
-			"provider": "pending_camera_provider",
-			"left": [],
-			"right": []
+			"provider": "mediapipe_android_hand_landmarker",
+			"available": hand_tracker.is_available(),
+			"hands": hands_detected,
+			"confidence": hand_confidence,
+			"timestamp_us": hand_timestamp_us,
+			"left": _landmarks_to_arrays(left_hand_landmarks),
+			"right": _landmarks_to_arrays(right_hand_landmarks)
 		}
 	}
 	udp.put_packet(JSON.stringify(packet).to_utf8_buffer())
@@ -309,6 +379,28 @@ func _update_camera_status() -> void:
 		camera_frame_size.y,
 		camera_sample_count
 	]
+
+func _landmarks_to_arrays(points: Array[Vector3]) -> Array:
+	var output: Array = []
+	for point in points:
+		output.append([point.x, point.y, point.z])
+	return output
+
+func _update_visual_status() -> void:
+	if not is_instance_valid(visual_status):
+		return
+	var state := "SEM TRACKING"
+	if visual_tracking_valid:
+		state = "RASTREAMENTO RELATIVO"
+	visual_status.text = "VISUAL: %s\\nFLOW dx/dy: %+.2f / %+.2f\\nPONTOS: %d  CONFIANÇA: %.2f" % [state, visual_dx, visual_dy, visual_tracked_points, visual_confidence]
+
+func _update_hand_status() -> void:
+	if not is_instance_valid(hand_status):
+		return
+	var state := "BACKEND INDISPONÍVEL"
+	if hand_tracker.is_available():
+		state = "MEDIAPIPE ATIVO"
+	hand_status.text = "MÃOS: %s\\nDETECTADAS: %d  CONFIANÇA: %.2f\\nLANDMARKS L/R: %d / %d" % [state, hands_detected, hand_confidence, left_hand_landmarks.size(), right_hand_landmarks.size()]
 
 func _format_vector(value: Vector3) -> String:
 	return "(%+.3f, %+.3f, %+.3f)" % [value.x, value.y, value.z]
