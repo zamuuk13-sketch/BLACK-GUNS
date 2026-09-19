@@ -1,4 +1,4 @@
-extends RefCounted
+extends Node
 class_name BlackGunsPCClient
 
 signal connection_state_changed(connected: bool, message: String)
