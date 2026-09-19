@@ -232,8 +232,7 @@ func _read_sensors(delta: float) -> void:
 	head_rotation.y = wrapf(head_rotation.y, -PI, PI)
 	head_rotation.z = wrapf(head_rotation.z, -PI, PI)
 
-	# Ainda não usamos dupla integração do acelerômetro. A posição 6DoF
-	# será obtida quando o estimador visual/IMU estiver implementado.
+		# Não usamos dupla integração do acelerômetro; a posição visual continua relativa.
 	head_position = Vector3(0.0, 1.65, 0.0) + visual_position_offset
 
 func _sample_camera_sensor() -> void:
@@ -298,7 +297,7 @@ func _send_test_packet() -> void:
 		"sequence": packet_sequence,
 		"timestamp_us": Time.get_ticks_usec(),
 		"device": "android_mobile_vr",
-		"sensor_stage": 4,
+		"sensor_stage": 5,
 		"camera_sensor": camera_active
 	}
 	var bytes := JSON.stringify(packet).to_utf8_buffer()
@@ -309,7 +308,7 @@ func _send_tracking_packet() -> void:
 	packet_sequence += 1
 	var packet := {
 		"type": "black_guns_tracking",
-		"version": 3,
+		"version": 5,
 		"sequence": packet_sequence,
 		"timestamp_us": sensor_timestamp_us,
 		"sensor_stage": 5,
