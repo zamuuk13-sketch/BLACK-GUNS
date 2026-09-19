@@ -78,11 +78,11 @@ position = Vector3(0, 1.65, 4.2)
 current = true
 fov = 78.0
 
-[node name="LeftHandSkeleton" type="Node3D" parent="."]
+[node name="LeftHandSkeleton" type="Node3D" parent="PlayerCamera"]
 script = ExtResource("2")
 hand = 0
 
-[node name="RightHandSkeleton" type="Node3D" parent="."]
+[node name="RightHandSkeleton" type="Node3D" parent="PlayerCamera"]
 script = ExtResource("2")
 hand = 1
 
@@ -111,7 +111,7 @@ offset_top = 60.0
 offset_right = 380.0
 offset_bottom = 92.0
 theme_override_font_sizes/font_size = 15
-text = "MOBILE VR • ETAPA 5 — HAND TRACKING"
+text = "MOBILE VR • ETAPA 6 — 3D HANDS"
 
 [node name="Status" type="Label" parent="UI/Panel"]
 offset_left = 22.0
@@ -120,7 +120,7 @@ offset_right = 390.0
 offset_bottom = 166.0
 theme_override_colors/font_color = Color(0.65, 0.82, 1, 1)
 theme_override_font_sizes/font_size = 16
-text = "Etapa 5 pronta."
+text = "Etapa 6: mãos 3D aguardando dados do backend."
 
 [node name="SensorStatus" type="Label" parent="UI/Panel"]
 offset_left = 22.0
@@ -213,4 +213,4 @@ offset_right = 1200.0
 offset_bottom = 760.0
 theme_override_colors/font_color = Color(0.55, 0.62, 0.7, 1)
 theme_override_font_sizes/font_size = 16
-text = "ETAPA 5: câmera invisível + MediaPipe + 21 landmarks por mão. Backend nativo Android."
+text = "ETAPA 6: landmarks → mãos 3D, escala, orientação e suavização. Câmera continua invisível."
